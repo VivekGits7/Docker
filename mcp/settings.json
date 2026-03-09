@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "github": {
+      "command": "docker",
+      "args": ["exec", "-i", "mcp-github", "/server/github-mcp-server", "stdio"]
+    },
+    "gmail": {
+      "command": "docker",
+      "args": ["exec", "-i", "mcp-gmail", "npx", "-y", "@anthropic/mcp-server-gmail"]
+    },
+    "calendar": {
+      "command": "docker",
+      "args": ["exec", "-i", "mcp-calendar", "npx", "-y", "@anthropic/mcp-server-google-calendar"]
+    }
+  }
+}

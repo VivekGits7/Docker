@@ -1,0 +1,105 @@
+## ============================================
+## MCP Servers - All-in-One Docker Compose
+## ============================================
+##
+## USAGE:
+##   cd /Users/vivek/Documents/Codehub/Docker/mcp
+##   docker compose -f mcp-server.yml up -d              # Start all
+##   docker compose -f mcp-server.yml up -d mcp-github   # Start one
+##   docker compose -f mcp-server.yml down               # Stop all
+##   docker compose -f mcp-server.yml logs mcp-github    # View logs
+##
+## PREREQUISITES:
+##   1. Copy .env.example to .env and fill in your tokens
+##   2. For Gmail & Calendar: set up Google OAuth credentials
+##      (see instructions below)
+##
+## ============================================
+
+services:
+
+  ## ==========================================
+  ## 1. GitHub MCP Server
+  ## ==========================================
+  ## Manage repos, issues, PRs, branches, search code
+  ##
+  ## TOKEN SETUP:
+  ##   1. Go to https://github.com/settings/tokens
+  ##   2. Generate new token (classic)
+  ##   3. Scopes: repo, workflow, read:org
+  ##   4. Add to .env as GITHUB_TOKEN=ghp_xxx
+  ##
+  mcp-github:
+    image: ghcr.io/github/github-mcp-server
+    container_name: mcp-github
+    stdin_open: true
+    tty: false
+    environment:
+      - GITHUB_PERSONAL_ACCESS_TOKEN=${GITHUB_TOKEN}
+    networks:
+      - mcp_network
+    restart: unless-stopped
+
+  ## ==========================================
+  ## 2. Gmail MCP Server
+  ## ==========================================
+  ## Read, search, send emails via Gmail API
+  ##
+  ## OAUTH SETUP:
+  ##   1. Go to https://console.cloud.google.com
+  ##   2. Create a project → Enable Gmail API
+  ##   3. Create OAuth 2.0 credentials (Desktop App)
+  ##   4. Download credentials.json → place in ./gmail-data/
+  ##   5. On first run, follow the auth URL in logs:
+  ##      docker logs mcp-gmail
+  ##
+  mcp-gmail:
+    image: node:22-slim
+    container_name: mcp-gmail
+    stdin_open: true
+    tty: false
+    working_dir: /app
+    command: npx -y mcp-server-gmail
+    volumes:
+      - gmail-data:/app/.gmail-credentials
+    environment:
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+    networks:
+      - mcp_network
+    restart: unless-stopped
+
+  ## ==========================================
+  ## 3. Google Calendar MCP Server
+  ## ==========================================
+  ## Read, create, update calendar events
+  ##
+  ## OAUTH SETUP:
+  ##   Same Google Cloud project as Gmail
+  ##   1. Enable Google Calendar API in the project
+  ##   2. Uses the same OAuth credentials as Gmail
+  ##
+  mcp-calendar:
+    image: node:22-slim
+    container_name: mcp-calendar
+    stdin_open: true
+    tty: false
+    working_dir: /app
+    command: npx -y mcp-google-calendar
+    volumes:
+      - calendar-data:/app/.calendar-credentials
+    environment:
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+    networks:
+      - mcp_network
+    restart: unless-stopped
+
+
+volumes:
+  gmail-data:
+  calendar-data:
+
+networks:
+  mcp_network:
+    driver: bridge
