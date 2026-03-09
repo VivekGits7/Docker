@@ -1,0 +1,33 @@
+## ============================================
+## GitHub MCP Server - Docker Compose
+## ============================================
+##
+## HOW TO GET YOUR GITHUB TOKEN (manually):
+##
+##   1. Go to https://github.com/settings/tokens
+##   2. Click "Generate new token" → "Generate new token (classic)"
+##   3. Name: mcp-server
+##   4. Scopes: repo, workflow, read:org
+##   5. Click "Generate token"
+##   6. Copy the token (starts with ghp_...)
+##   7. Paste it below replacing YOUR_GITHUB_TOKEN_HERE
+##
+## ============================================
+
+services:
+
+  # --- MCP: GitHub Server ---
+  mcp-github:
+    image: ghcr.io/github/github-mcp-server
+    container_name: mcp-github
+    stdin_open: true
+    tty: false
+    environment:
+      - GITHUB_PERSONAL_ACCESS_TOKEN=${GITHUB_TOKEN}
+    networks:
+      - mcp_network
+    restart: unless-stopped
+
+networks:
+  mcp_network:
+    driver: bridge
