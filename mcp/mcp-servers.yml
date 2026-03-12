@@ -2,11 +2,14 @@
 ## MCP Servers - Docker Compose (All-in-One)
 ## ============================================
 ##
-## Runs both GitHub and GitLab MCP servers in a single compose file.
+## Runs GitHub, GitLab, and PostgreSQL MCP servers in a single compose file.
 ##
 ## TOKENS:
 ##   - GITHUB_TOKEN: https://github.com/settings/tokens (scopes: repo, workflow, read:org)
 ##   - GITLAB_TOKEN: https://gitlab.com/-/user_settings/personal_access_tokens (scopes: api, read_user, read_repository)
+##
+## POSTGRES:
+##   - Set POSTGRES_DB_HOST, POSTGRES_DB_PORT, POSTGRES_DB_NAME, POSTGRES_DB_USER, POSTGRES_DB_PASSWORD in .env
 ##
 ## USAGE:
 ##
@@ -19,6 +22,10 @@
 ##   # Verify
 ##   docker logs mcp-github
 ##   docker logs mcp-gitlab
+##   docker logs mcp-postgres
+##
+## ADD POSTGRES TO CLAUDE CODE:
+##   claude mcp add postgres --scope user -- docker exec -i mcp-postgres npx -y @modelcontextprotocol/server-postgres $POSTGRES_CONNECTION_STRING
 ##
 ## ============================================
 
@@ -53,6 +60,25 @@ services:
     environment:
       - GITLAB_PERSONAL_ACCESS_TOKEN=${GITLAB_TOKEN}
       - GITLAB_API_URL=https://${GITLAB_URL:-gitlab.com}/api/v4
+    networks:
+      - mcp_network
+    restart: unless-stopped
+
+  # --- MCP: PostgreSQL Server ---
+  mcp-postgres:
+    build:
+      context: .
+      dockerfile_inline: |
+        FROM node:22-alpine
+        RUN npm install -g @modelcontextprotocol/server-postgres
+    image: mcp-postgres:latest
+    pull_policy: build
+    container_name: mcp-postgres
+    stdin_open: true
+    tty: false
+    entrypoint: ["tail", "-f", "/dev/null"]
+    environment:
+      - POSTGRES_CONNECTION_STRING=postgresql://${POSTGRES_DB_USER}:${POSTGRES_DB_PASSWORD}@${POSTGRES_DB_HOST}:${POSTGRES_DB_PORT}/${POSTGRES_DB_NAME}
     networks:
       - mcp_network
     restart: unless-stopped
