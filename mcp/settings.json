@@ -7,6 +7,10 @@
     "gitlab": {
       "command": "docker",
       "args": ["exec", "-i", "mcp-gitlab", "npx", "-y", "mcp-remote", "https://gitlab.com/api/v4/mcp"]
+    },
+    "postgres": {
+      "command": "docker",
+      "args": ["exec", "-i", "mcp-postgres", "npx", "-y", "@modelcontextprotocol/server-postgres", "postgresql://kuberuser:password_62.72.59.204_kuberyaai_2025@62.72.59.204:6001/pirx-study-ai"]
     }
   }
 }

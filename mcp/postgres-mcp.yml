@@ -1,0 +1,49 @@
+## ============================================
+## MCP Server - PostgreSQL
+## ============================================
+##
+## Runs the PostgreSQL MCP server for database access via Claude/Gemini.
+##
+## CONNECTION:
+##   Uses the lead_generation database on localhost:5432
+##
+## USAGE:
+##
+##   # Start server
+##   docker compose -f postgres-mcp.yml up -d
+##
+##   # Stop server
+##   docker compose -f postgres-mcp.yml down
+##
+##   # Verify
+##   docker logs mcp-postgres
+##
+## ADD TO CLAUDE CODE:
+##   claude mcp add postgres --scope user -- docker exec -i mcp-postgres npx -y @modelcontextprotocol/server-postgres $POSTGRES_CONNECTION_STRING
+##
+## ============================================
+
+services:
+
+  # --- MCP: PostgreSQL Server ---
+  mcp-postgres:
+    build:
+      context: .
+      dockerfile_inline: |
+        FROM node:22-alpine
+        RUN npm install -g @modelcontextprotocol/server-postgres
+    image: mcp-postgres:latest
+    pull_policy: build
+    container_name: mcp-postgres
+    stdin_open: true
+    tty: false
+    entrypoint: ["tail", "-f", "/dev/null"]
+    environment:
+      - POSTGRES_CONNECTION_STRING=postgresql://${POSTGRES_DB_USER}:${POSTGRES_DB_PASSWORD}@${POSTGRES_DB_HOST}:${POSTGRES_DB_PORT}/${POSTGRES_DB_NAME}
+    networks:
+      - mcp_network
+    restart: unless-stopped
+
+networks:
+  mcp_network:
+    driver: bridge
