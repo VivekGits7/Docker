@@ -102,25 +102,11 @@ If you prefer editing the config file:
   "mcpServers": {
     "github": {
       "command": "docker",
-      "args": ["exec", "-i", "mcp-github", "/ko-app/github-mcp-server", "stdio"],
-      "env": {
-        "GITHUB_PERSONAL_ACCESS_TOKEN": "ghp_your_token_here"
-      }
+      "args": ["exec", "-i", "mcp-github", "/server/github-mcp-server", "stdio"]
     },
-    "docker": {
+    "gmail": {
       "command": "docker",
-      "args": ["exec", "-i", "mcp-docker", "docker-mcp-server"]
-    },
-    "filesystem": {
-      "command": "docker",
-      "args": ["exec", "-i", "mcp-filesystem", "npx", "-y", "@modelcontextprotocol/server-filesystem", "/data"]
-    },
-    "postgres": {
-      "command": "docker",
-      "args": ["exec", "-i", "mcp-postgres", "npx", "-y", "@modelcontextprotocol/server-postgres"],
-      "env": {
-        "POSTGRES_CONNECTION_STRING": "postgresql://user:pass@host:5432/mydb"
-      }
+      "args": ["exec", "-i", "mcp-gmail", "npx", "-y", "mcp-server-gmail"]
     }
   }
 }
@@ -137,14 +123,11 @@ Edit `~/.gemini/settings.json`:
   "mcpServers": {
     "github": {
       "command": "docker",
-      "args": ["exec", "-i", "mcp-github", "/ko-app/github-mcp-server", "stdio"],
-      "env": {
-        "GITHUB_PERSONAL_ACCESS_TOKEN": "ghp_your_token_here"
-      }
+      "args": ["exec", "-i", "mcp-github", "/server/github-mcp-server", "stdio"]
     },
-    "docker": {
+    "gmail": {
       "command": "docker",
-      "args": ["exec", "-i", "mcp-docker", "docker-mcp-server"]
+      "args": ["exec", "-i", "mcp-gmail", "npx", "-y", "mcp-server-gmail"]
     }
   }
 }

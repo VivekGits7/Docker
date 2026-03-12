@@ -1,0 +1,62 @@
+## ============================================
+## MCP Servers - Docker Compose (All-in-One)
+## ============================================
+##
+## Runs both GitHub and GitLab MCP servers in a single compose file.
+##
+## TOKENS:
+##   - GITHUB_TOKEN: https://github.com/settings/tokens (scopes: repo, workflow, read:org)
+##   - GITLAB_TOKEN: https://gitlab.com/-/user_settings/personal_access_tokens (scopes: api, read_user, read_repository)
+##
+## USAGE:
+##
+##   # Start all servers
+##   docker compose -f mcp-servers.yml up -d
+##
+##   # Stop all servers
+##   docker compose -f mcp-servers.yml down
+##
+##   # Verify
+##   docker logs mcp-github
+##   docker logs mcp-gitlab
+##
+## ============================================
+
+services:
+
+  # --- MCP: GitHub Server ---
+  mcp-github:
+    image: ghcr.io/github/github-mcp-server
+    container_name: mcp-github
+    stdin_open: true
+    tty: false
+    environment:
+      - GITHUB_PERSONAL_ACCESS_TOKEN=${GITHUB_TOKEN}
+    networks:
+      - mcp_network
+    restart: unless-stopped
+
+  # --- MCP: GitLab Server ---
+  mcp-gitlab:
+    build:
+      context: .
+      dockerfile_inline: |
+        FROM node:22-alpine
+        RUN npm install -g @anthropic-ai/sdk @zereight/mcp-gitlab
+        WORKDIR /app
+    image: mcp-gitlab:latest
+    pull_policy: build
+    container_name: mcp-gitlab
+    stdin_open: true
+    tty: false
+    entrypoint: ["tail", "-f", "/dev/null"]
+    environment:
+      - GITLAB_PERSONAL_ACCESS_TOKEN=${GITLAB_TOKEN}
+      - GITLAB_API_URL=https://${GITLAB_URL:-gitlab.com}/api/v4
+    networks:
+      - mcp_network
+    restart: unless-stopped
+
+networks:
+  mcp_network:
+    driver: bridge

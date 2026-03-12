@@ -1,6 +1,7 @@
 # Environment variables (contains secrets)
 .env
 mcp/.env
+mcp/google-credentials.json
 
 # OS files
 .DS_Store
