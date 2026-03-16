@@ -1,0 +1,56 @@
+## ============================================
+## MCP Server - Postman
+## ============================================
+##
+## Runs the Postman MCP server for API testing, collection management,
+## and code generation via Claude/Gemini.
+##
+## SETUP:
+##   1. Get your Postman API key from: https://go.postman.co/settings/me/api-keys
+##   2. Add POSTMAN_API_KEY to .env
+##
+## MODES:
+##   --minimal  : Essential tools only (default)
+##   --code     : API definition search + code generation
+##   --full     : All 100+ Postman API tools
+##
+## USAGE:
+##
+##   # Start server
+##   docker compose -f postman-mcp.yml up -d
+##
+##   # Stop server
+##   docker compose -f postman-mcp.yml down
+##
+##   # Verify
+##   docker logs mcp-postman
+##
+## ADD TO CLAUDE CODE:
+##   claude mcp add postman --env POSTMAN_API_KEY=<key> -- npx @postman/postman-mcp-server@latest --full
+##
+## ============================================
+
+services:
+
+  # --- MCP: Postman Server ---
+  mcp-postman:
+    build:
+      context: .
+      dockerfile_inline: |
+        FROM node:22-alpine
+        RUN npm install -g @postman/postman-mcp-server
+    image: mcp-postman:latest
+    pull_policy: build
+    container_name: mcp-postman
+    stdin_open: true
+    tty: false
+    entrypoint: ["tail", "-f", "/dev/null"]
+    environment:
+      - POSTMAN_API_KEY=${POSTMAN_API_KEY}
+    networks:
+      - mcp_network
+    restart: unless-stopped
+
+networks:
+  mcp_network:
+    driver: bridge

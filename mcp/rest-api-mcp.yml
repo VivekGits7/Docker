@@ -1,0 +1,61 @@
+## ============================================
+## MCP Server - REST API Tester
+## ============================================
+##
+## Lightweight MCP server for testing any REST API endpoint directly
+## from Claude/Gemini. Supports Bearer, API Key, and Basic Auth.
+##
+## SETUP:
+##   Set REST_BASE_URL and auth variables in .env
+##
+## AUTH MODES (choose one):
+##   - Bearer:   REST_AUTH_BEARER=your-token
+##   - API Key:  REST_AUTH_APIKEY_HEADER_NAME + REST_AUTH_APIKEY_VALUE
+##   - Basic:    REST_AUTH_BASIC_USERNAME + REST_AUTH_BASIC_PASSWORD
+##
+## USAGE:
+##
+##   # Start server
+##   docker compose -f rest-api-mcp.yml up -d
+##
+##   # Stop server
+##   docker compose -f rest-api-mcp.yml down
+##
+##   # Verify
+##   docker logs mcp-rest-api
+##
+## ============================================
+
+services:
+
+  # --- MCP: REST API Tester Server ---
+  mcp-rest-api:
+    build:
+      context: .
+      dockerfile_inline: |
+        FROM node:22-alpine
+        RUN npm install -g dkmaker-mcp-rest-api
+    image: mcp-rest-api:latest
+    pull_policy: build
+    container_name: mcp-rest-api
+    stdin_open: true
+    tty: false
+    entrypoint: ["tail", "-f", "/dev/null"]
+    environment:
+      - REST_BASE_URL=${REST_BASE_URL:-http://host.docker.internal:8000}
+      - AUTH_BEARER=${REST_AUTH_BEARER:-}
+      - AUTH_BASIC_USERNAME=${REST_AUTH_BASIC_USERNAME:-}
+      - AUTH_BASIC_PASSWORD=${REST_AUTH_BASIC_PASSWORD:-}
+      - AUTH_APIKEY_HEADER_NAME=${REST_AUTH_APIKEY_HEADER_NAME:-}
+      - AUTH_APIKEY_VALUE=${REST_AUTH_APIKEY_VALUE:-}
+      - REST_ENABLE_SSL_VERIFY=${REST_ENABLE_SSL_VERIFY:-true}
+      - REST_RESPONSE_SIZE_LIMIT=${REST_RESPONSE_SIZE_LIMIT:-10000}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - mcp_network
+    restart: unless-stopped
+
+networks:
+  mcp_network:
+    driver: bridge

@@ -10,7 +10,23 @@
     },
     "postgres": {
       "command": "docker",
-      "args": ["exec", "-i", "mcp-postgres", "npx", "-y", "@modelcontextprotocol/server-postgres", "postgresql://kuberuser:password_62.72.59.204_kuberyaai_2025@62.72.59.204:6001/pirx-study-ai"]
+      "args": ["exec", "-i", "mcp-postgres", "sh", "-c", "npx -y @modelcontextprotocol/server-postgres $POSTGRES_CONNECTION_STRING"]
+    },
+    "swagger": {
+      "command": "docker",
+      "args": ["exec", "-i", "mcp-swagger", "sh", "-c", "npx -y mcp-openapi --spec $OPENAPI_SPEC_URL --base-url $API_BASE_URL"]
+    },
+    "postman": {
+      "command": "docker",
+      "args": ["exec", "-i", "mcp-postman", "sh", "-c", "npx -y @postman/postman-mcp-server --full"]
+    },
+    "rest-api": {
+      "command": "docker",
+      "args": ["exec", "-i", "mcp-rest-api", "npx", "-y", "dkmaker-mcp-rest-api"]
+    },
+    "google-map": {
+      "command": "docker",
+      "args": ["exec", "-i", "mcp-google-map", "npx", "-y", "@cablate/mcp-google-map", "--stdio"]
     }
   }
 }

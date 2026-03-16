@@ -1,0 +1,54 @@
+## ============================================
+## MCP Server - Swagger / OpenAPI Proxy
+## ============================================
+##
+## Runs the OpenAPI MCP server that exposes FastAPI endpoints
+## as MCP tools for Claude/Gemini to test APIs directly.
+##
+## REQUIREMENTS:
+##   Your FastAPI dev server must be running and accessible.
+##   Default: http://host.docker.internal:8000
+##
+## USAGE:
+##
+##   # Start server
+##   docker compose -f swagger-mcp.yml up -d
+##
+##   # Stop server
+##   docker compose -f swagger-mcp.yml down
+##
+##   # Verify
+##   docker logs mcp-swagger
+##
+## ADD TO CLAUDE CODE:
+##   claude mcp add swagger --scope user -- docker exec -i mcp-swagger npx -y mcp-openapi --spec $OPENAPI_SPEC_URL --base-url $API_BASE_URL
+##
+## ============================================
+
+services:
+
+  # --- MCP: Swagger / OpenAPI Proxy Server ---
+  mcp-swagger:
+    build:
+      context: .
+      dockerfile_inline: |
+        FROM node:22-alpine
+        RUN npm install -g mcp-openapi
+    image: mcp-swagger:latest
+    pull_policy: build
+    container_name: mcp-swagger
+    stdin_open: true
+    tty: false
+    entrypoint: ["tail", "-f", "/dev/null"]
+    environment:
+      - OPENAPI_SPEC_URL=${SWAGGER_OPENAPI_URL:-http://host.docker.internal:8000/openapi.json}
+      - API_BASE_URL=${SWAGGER_API_BASE_URL:-http://host.docker.internal:8000}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - mcp_network
+    restart: unless-stopped
+
+networks:
+  mcp_network:
+    driver: bridge

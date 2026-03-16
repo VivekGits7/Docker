@@ -1,8 +1,12 @@
 ## ============================================
-## MCP Servers - PostgreSQL, Swagger, REST API Tester
+## MCP Servers - Docker Compose (All-in-One)
 ## ============================================
 ##
-## Runs PostgreSQL, Swagger, and REST API Tester MCP servers.
+## Runs GitHub, GitLab, PostgreSQL, Swagger, Postman, and REST API Tester MCP servers.
+##
+## TOKENS:
+##   - GITHUB_TOKEN: https://github.com/settings/tokens (scopes: repo, workflow, read:org)
+##   - GITLAB_TOKEN: https://gitlab.com/-/user_settings/personal_access_tokens (scopes: api, read_user, read_repository)
 ##
 ## POSTGRES:
 ##   - Set POSTGRES_DB_HOST, POSTGRES_DB_PORT, POSTGRES_DB_NAME, POSTGRES_DB_USER, POSTGRES_DB_PASSWORD in .env
@@ -11,26 +15,69 @@
 ##   - Set SWAGGER_OPENAPI_URL and SWAGGER_API_BASE_URL in .env
 ##   - Your FastAPI server must be running for the Swagger MCP to work
 ##
+## POSTMAN:
+##   - Set POSTMAN_API_KEY in .env
+##   - Get key from: https://go.postman.co/settings/me/api-keys
+##
 ## REST API TESTER:
 ##   - Set REST_BASE_URL in .env (default: http://host.docker.internal:8000)
 ##   - Set auth: REST_AUTH_BEARER or REST_AUTH_BASIC_* or REST_AUTH_APIKEY_*
 ##
 ## USAGE:
 ##
-##   # Start servers
+##   # Start all servers
 ##   docker compose -f mcp-servers.yml up -d
 ##
-##   # Stop servers
+##   # Stop all servers
 ##   docker compose -f mcp-servers.yml down
 ##
 ##   # Verify
+##   docker logs mcp-github
+##   docker logs mcp-gitlab
 ##   docker logs mcp-postgres
 ##   docker logs mcp-swagger
+##   docker logs mcp-postman
 ##   docker logs mcp-rest-api
+##
+## ADD POSTGRES TO CLAUDE CODE:
+##   claude mcp add postgres --scope user -- docker exec -i mcp-postgres npx -y @modelcontextprotocol/server-postgres $POSTGRES_CONNECTION_STRING
 ##
 ## ============================================
 
 services:
+
+  # --- MCP: GitHub Server ---
+  mcp-github:
+    image: ghcr.io/github/github-mcp-server
+    container_name: mcp-github
+    stdin_open: true
+    tty: false
+    environment:
+      - GITHUB_PERSONAL_ACCESS_TOKEN=${GITHUB_TOKEN}
+    networks:
+      - mcp_network
+    restart: unless-stopped
+
+  # --- MCP: GitLab Server ---
+  mcp-gitlab:
+    build:
+      context: .
+      dockerfile_inline: |
+        FROM node:22-alpine
+        RUN npm install -g @anthropic-ai/sdk @zereight/mcp-gitlab
+        WORKDIR /app
+    image: mcp-gitlab:latest
+    pull_policy: build
+    container_name: mcp-gitlab
+    stdin_open: true
+    tty: false
+    entrypoint: ["tail", "-f", "/dev/null"]
+    environment:
+      - GITLAB_PERSONAL_ACCESS_TOKEN=${GITLAB_TOKEN}
+      - GITLAB_API_URL=https://${GITLAB_URL:-gitlab.com}/api/v4
+    networks:
+      - mcp_network
+    restart: unless-stopped
 
   # --- MCP: PostgreSQL Server ---
   mcp-postgres:
@@ -69,6 +116,25 @@ services:
       - API_BASE_URL=${SWAGGER_API_BASE_URL:-http://host.docker.internal:8000}
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    networks:
+      - mcp_network
+    restart: unless-stopped
+
+  # --- MCP: Postman Server ---
+  mcp-postman:
+    build:
+      context: .
+      dockerfile_inline: |
+        FROM node:22-alpine
+        RUN npm install -g @postman/postman-mcp-server
+    image: mcp-postman:latest
+    pull_policy: build
+    container_name: mcp-postman
+    stdin_open: true
+    tty: false
+    entrypoint: ["tail", "-f", "/dev/null"]
+    environment:
+      - POSTMAN_API_KEY=${POSTMAN_API_KEY}
     networks:
       - mcp_network
     restart: unless-stopped

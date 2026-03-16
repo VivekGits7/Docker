@@ -1,0 +1,56 @@
+## ============================================
+## Google Maps MCP Server - Docker Compose
+## ============================================
+##
+## Provides tools: maps_search_nearby, maps_search_places,
+## maps_place_details, maps_geocode, and more.
+##
+## Package: @cablate/mcp-google-map (MIT licensed)
+## GitHub:  https://github.com/cablate/mcp-google-map
+##
+## HOW TO GET YOUR GOOGLE MAPS API KEY:
+##
+##   1. Go to https://console.cloud.google.com/
+##   2. Create or select a project
+##   3. Enable "Maps JavaScript API", "Places API", "Geocoding API"
+##   4. Go to APIs & Services → Credentials
+##   5. Click "Create Credentials" → "API Key"
+##   6. Copy the key and set it as GOOGLE_MAPS_API_KEY in .env
+##
+## USAGE:
+##
+##   # Start server
+##   docker compose -f google-map-mcp.yml up -d
+##
+##   # Stop server
+##   docker compose -f google-map-mcp.yml down
+##
+##   # Verify
+##   docker logs mcp-google-map
+##
+## ============================================
+
+services:
+
+  # --- MCP: Google Maps Server ---
+  mcp-google-map:
+    build:
+      context: .
+      dockerfile_inline: |
+        FROM node:22-alpine
+        RUN npm install -g @cablate/mcp-google-map
+    image: mcp-google-map:latest
+    pull_policy: build
+    container_name: mcp-google-map
+    stdin_open: true
+    tty: false
+    entrypoint: ["tail", "-f", "/dev/null"]
+    environment:
+      - GOOGLE_MAPS_API_KEY=${GOOGLE_MAPS_API_KEY}
+    networks:
+      - mcp_network
+    restart: unless-stopped
+
+networks:
+  mcp_network:
+    driver: bridge
