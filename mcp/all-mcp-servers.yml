@@ -167,6 +167,32 @@ services:
       - mcp_network
     restart: unless-stopped
 
+  # --- MCP: Google Docs & Sheets Server ---
+  mcp-google-docs:
+    build:
+      context: .
+      dockerfile_inline: |
+        FROM node:22-alpine
+        RUN npm install -g @a-bonus/google-docs-mcp
+        WORKDIR /root
+    image: mcp-google-docs:latest
+    pull_policy: build
+    container_name: mcp-google-docs
+    stdin_open: true
+    tty: true
+    entrypoint: ["tail", "-f", "/dev/null"]
+    environment:
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+    volumes:
+      - mcp_google_docs_tokens:/root
+    networks:
+      - mcp_network
+    restart: unless-stopped
+
+volumes:
+  mcp_google_docs_tokens:
+
 networks:
   mcp_network:
     driver: bridge

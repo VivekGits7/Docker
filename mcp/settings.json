@@ -27,6 +27,10 @@
     "google-map": {
       "command": "docker",
       "args": ["exec", "-i", "mcp-google-map", "npx", "-y", "@cablate/mcp-google-map", "--stdio"]
+    },
+    "google-docs": {
+      "command": "docker",
+      "args": ["exec", "-i", "mcp-google-docs", "npx", "-y", "@a-bonus/google-docs-mcp"]
     }
   }
 }

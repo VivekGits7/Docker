@@ -1,0 +1,70 @@
+## ============================================
+## Google Docs & Sheets MCP Server - Docker Compose
+## ============================================
+##
+## Provides tools: readDocument, appendText, readSpreadsheet,
+## writeSpreadsheet, and 40+ more for Docs/Sheets/Drive.
+##
+## Package: @a-bonus/google-docs-mcp (MIT licensed)
+##
+## HOW TO GET YOUR GOOGLE CLIENT ID AND SECRET:
+##
+##   1. Go to https://console.cloud.google.com/
+##   2. Create or select a project
+##   3. Enable "Google Docs API", "Google Sheets API", "Google Drive API"
+##   4. Go to OAuth consent screen → External → add your email as test user
+##   5. Go to Credentials → Create OAuth client ID → Desktop app
+##   6. Copy the Client ID and Client Secret and set them in your .env
+##
+## AUTHENTICATION (Manual Step):
+##
+##   After starting the container, run this command to authenticate:
+##   docker exec -it mcp-google-docs npx -y @a-bonus/google-docs-mcp auth
+##
+##   Follow the URL, authorize, and paste the code back into the terminal.
+##   The token will be saved in the persistent volume 'mcp_google_docs_tokens'.
+##
+## USAGE:
+##
+##   # Start server
+##   docker compose -f google-docs-mcp.yml up -d
+##
+##   # Stop server
+##   docker compose -f google-docs-mcp.yml down
+##
+##   # Verify
+##   docker logs mcp-google-docs
+##
+## ============================================
+
+services:
+
+  # --- MCP: Google Docs & Sheets Server ---
+  mcp-google-docs:
+    build:
+      context: .
+      dockerfile_inline: |
+        FROM node:22-alpine
+        RUN npm install -g @a-bonus/google-docs-mcp
+        WORKDIR /root
+    image: mcp-google-docs:latest
+    pull_policy: build
+    container_name: mcp-google-docs
+    stdin_open: true
+    tty: true
+    entrypoint: ["tail", "-f", "/dev/null"]
+    environment:
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+    volumes:
+      - mcp_google_docs_tokens:/root
+    networks:
+      - mcp_network
+    restart: unless-stopped
+
+volumes:
+  mcp_google_docs_tokens:
+
+networks:
+  mcp_network:
+    driver: bridge
