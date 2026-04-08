@@ -1,0 +1,70 @@
+## ============================================
+## MCP Server: Excalidraw (Diagramming & Flowcharts)
+## ============================================
+##
+## Full-featured Excalidraw MCP server with real-time canvas sync.
+## Claude can create diagrams, flowcharts, architecture diagrams,
+## system designs, and export them as images or Excalidraw URLs.
+##
+## COMPONENTS:
+##   - Canvas Server: Web UI at http://localhost:3000 (view/edit diagrams live)
+##   - MCP Server: stdio MCP process (Claude talks to this)
+##
+## FEATURES (26 Tools):
+##   - Element CRUD: create, update, delete, query, batch create, duplicate
+##   - Layout: align, distribute, group/ungroup elements
+##   - Export: PNG, SVG, Excalidraw URL, scene snapshot/restore
+##   - Mermaid: Convert Mermaid syntax to Excalidraw diagrams
+##   - Canvas: Screenshot, viewport control, scene metadata
+##
+## USAGE:
+##
+##   # Start Excalidraw MCP
+##   docker compose -f excalidraw-mcp.yml up -d
+##
+##   # Stop
+##   docker compose -f excalidraw-mcp.yml down
+##
+##   # View canvas in browser
+##   open http://localhost:3000
+##
+##   # Verify
+##   docker logs mcp-excalidraw-canvas
+##   docker logs mcp-excalidraw
+##
+## ADD TO CLAUDE CODE:
+##   claude mcp add excalidraw --scope user -- docker exec -i mcp-excalidraw node dist/index.js
+##
+## ============================================
+
+services:
+
+  # --- Excalidraw: Canvas Server (Web UI) ---
+  mcp-excalidraw-canvas:
+    image: ghcr.io/yctimlin/mcp_excalidraw-canvas:latest
+    container_name: mcp-excalidraw-canvas
+    ports:
+      - "${EXCALIDRAW_CANVAS_PORT:-3000}:3000"
+    networks:
+      - mcp_network
+    restart: unless-stopped
+
+  # --- Excalidraw: MCP Server (stdio) ---
+  mcp-excalidraw:
+    image: ghcr.io/yctimlin/mcp_excalidraw:latest
+    container_name: mcp-excalidraw
+    stdin_open: true
+    tty: false
+    entrypoint: ["tail", "-f", "/dev/null"]
+    environment:
+      - EXPRESS_SERVER_URL=http://mcp-excalidraw-canvas:3000
+      - ENABLE_CANVAS_SYNC=true
+    depends_on:
+      - mcp-excalidraw-canvas
+    networks:
+      - mcp_network
+    restart: unless-stopped
+
+networks:
+  mcp_network:
+    driver: bridge

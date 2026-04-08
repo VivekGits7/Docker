@@ -31,6 +31,10 @@
     "google-docs": {
       "command": "docker",
       "args": ["exec", "-i", "mcp-google-docs", "npx", "-y", "@a-bonus/google-docs-mcp"]
+    },
+    "excalidraw": {
+      "command": "docker",
+      "args": ["exec", "-i", "mcp-excalidraw", "node", "dist/index.js"]
     }
   }
 }
