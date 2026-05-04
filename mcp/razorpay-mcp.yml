@@ -1,0 +1,78 @@
+## ============================================
+## Razorpay MCP Server - Docker Compose
+## ============================================
+##
+## Local Razorpay MCP server with full access to all 47 tools
+## (Payments, Orders, Refunds, Settlements, Payouts, QR Codes, etc.)
+## Unlike the remote version, the local server has NO restrictions —
+## refunds and settlements are fully usable.
+##
+## Image: razorpay/mcp (published on Docker Hub)
+## Repo:  https://github.com/razorpay/razorpay-mcp-server
+## Docs:  https://razorpay.com/docs/mcp-server/local/
+##
+## HOW TO GET YOUR RAZORPAY API KEYS:
+##
+##   1. Go to https://dashboard.razorpay.com/app/website-app-settings/api-keys
+##   2. Click "Generate Test Key" (or "Generate Live Key" for production)
+##   3. Copy the Key ID (starts with rzp_test_... or rzp_live_...)
+##   4. Copy the Key Secret (shown only once — save it safely)
+##   5. Paste both into the .env file as:
+##         RAZORPAY_KEY_ID=rzp_test_xxxxxxxxxxxx
+##         RAZORPAY_KEY_SECRET=xxxxxxxxxxxxxxxxxxxx
+##
+## ENVIRONMENT VARIABLES:
+##   RAZORPAY_KEY_ID      (required) — API Key ID from dashboard
+##   RAZORPAY_KEY_SECRET  (required) — API Key Secret from dashboard
+##   TOOLSETS             (optional) — Comma-separated toolset list. Default: "all"
+##                                     e.g., "payments,orders,refunds"
+##   READ_ONLY            (optional) — "true" to disable write operations. Default: "false"
+##   LOG_FILE             (optional) — Path to log file inside container
+##
+## AVAILABLE TOOLSETS (47 tools total):
+##   - payments       (capture, fetch, fetch_card_details, update, initiate, OTP flow)
+##   - payment_links  (create standard/UPI, fetch, send, update)
+##   - orders         (create, fetch, update, fetch_payments)
+##   - refunds        (fetch, update, fetch_multiple, fetch_specific)
+##   - qr_codes       (create, fetch, close, fetch_payments)
+##   - settlements    (fetch, fetch_recon, create_instant)
+##   - payouts        (fetch_all, fetch_by_id)
+##   - tokens         (fetch, revoke)
+##   - helpers        (detect_stack, integrate_razorpay_checkout)
+##
+## USAGE:
+##
+##   # Start server
+##   docker compose -f razorpay-mcp.yml up -d
+##
+##   # Stop server
+##   docker compose -f razorpay-mcp.yml down
+##
+##   # Verify
+##   docker logs mcp-razorpay
+##
+## ADD TO CLAUDE CODE:
+##   claude mcp add razorpay --scope user -- docker run --rm -i -e RAZORPAY_KEY_ID -e RAZORPAY_KEY_SECRET razorpay/mcp
+##
+## ============================================
+
+services:
+
+  # --- MCP: Razorpay Server ---
+  mcp-razorpay:
+    image: razorpay/mcp:latest
+    container_name: mcp-razorpay
+    stdin_open: true
+    tty: false
+    environment:
+      - RAZORPAY_KEY_ID=${RAZORPAY_KEY_ID}
+      - RAZORPAY_KEY_SECRET=${RAZORPAY_KEY_SECRET}
+      - TOOLSETS=${RAZORPAY_TOOLSETS:-all}
+      - READ_ONLY=${RAZORPAY_READ_ONLY:-false}
+    networks:
+      - mcp_network
+    restart: unless-stopped
+
+networks:
+  mcp_network:
+    driver: bridge
