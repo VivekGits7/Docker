@@ -1,0 +1,144 @@
+# Langfuse v4 core stack: web, worker, and ClickHouse only.
+# Postgres, Redis, and MinIO are NOT started here, they run as separate services:
+#   Postgres and Redis are already deployed on the host.
+#   MinIO has its own stack in ../minio.
+#
+# All containers meet over three networks:
+#   langfuse-network, shared with the existing Postgres (create once):
+#     docker network create langfuse-network
+#     docker network connect langfuse-network <your-postgres-container>
+#   minio-network, owned by the minio stack, start MinIO before this stack.
+#   redis-network, owned by the redis stack, start Redis before this stack.
+#
+# Setup:  cp .env.example .env   then   docker compose up -d
+# Where every credential comes from: README.md
+# Full guide with every step: ../docs/SELF_HOSTING.md
+
+name: langfuse
+
+x-langfuse-environment: &langfuse-environment
+  NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
+  NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?Set NEXTAUTH_SECRET in langfuse/.env}
+  # Points at the already running Postgres container over the shared network.
+  DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in langfuse/.env}@${POSTGRES_HOST:?Set POSTGRES_HOST in langfuse/.env}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-langfuse}
+  SALT: ${SALT:?Set SALT in langfuse/.env}
+  ENCRYPTION_KEY: ${ENCRYPTION_KEY:?Set ENCRYPTION_KEY in langfuse/.env}
+  TELEMETRY_ENABLED: ${TELEMETRY_ENABLED:-false}
+  LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES: "true"
+  CLICKHOUSE_MIGRATION_URL: clickhouse://langfuse-clickhouse:9000
+  CLICKHOUSE_URL: http://langfuse-clickhouse:8123
+  CLICKHOUSE_USER: clickhouse
+  CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:?Set CLICKHOUSE_PASSWORD in langfuse/.env}
+  CLICKHOUSE_CLUSTER_ENABLED: "false"
+  LANGFUSE_USE_AZURE_BLOB: "false"
+  LANGFUSE_S3_EVENT_UPLOAD_BUCKET: ${MINIO_BUCKET:-langfuse}
+  LANGFUSE_S3_EVENT_UPLOAD_REGION: auto
+  LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID: ${MINIO_ACCESS_KEY:?Set MINIO_ACCESS_KEY in langfuse/.env}
+  LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY: ${MINIO_SECRET_KEY:?Set MINIO_SECRET_KEY in langfuse/.env}
+  # minio is the standalone container from ../minio on minio-network.
+  LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT: ${MINIO_ENDPOINT:-http://minio:9000}
+  LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE: "true"
+  LANGFUSE_S3_EVENT_UPLOAD_PREFIX: events/
+  LANGFUSE_S3_MEDIA_UPLOAD_BUCKET: ${MINIO_BUCKET:-langfuse}
+  LANGFUSE_S3_MEDIA_UPLOAD_REGION: auto
+  LANGFUSE_S3_MEDIA_UPLOAD_ACCESS_KEY_ID: ${MINIO_ACCESS_KEY:?Set MINIO_ACCESS_KEY in langfuse/.env}
+  LANGFUSE_S3_MEDIA_UPLOAD_SECRET_ACCESS_KEY: ${MINIO_SECRET_KEY:?Set MINIO_SECRET_KEY in langfuse/.env}
+  LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT: ${MINIO_ENDPOINT:-http://minio:9000}
+  # Presigned media URLs are opened by the browser, so this must be reachable from outside Docker.
+  LANGFUSE_S3_MEDIA_UPLOAD_EXTERNAL_ENDPOINT: ${S3_MEDIA_EXTERNAL_ENDPOINT:-http://localhost:9090}
+  LANGFUSE_S3_MEDIA_UPLOAD_FORCE_PATH_STYLE: "true"
+  LANGFUSE_S3_MEDIA_UPLOAD_PREFIX: media/
+  # redis is the standalone container from ../redis on redis-network.
+  REDIS_HOST: ${REDIS_HOST:-redis}
+  REDIS_PORT: ${REDIS_PORT:-6379}
+  # Leave REDIS_PASSWORD empty if the existing Redis has no requirepass set.
+  REDIS_AUTH: ${REDIS_PASSWORD:-}
+  REDIS_TLS_ENABLED: "false"
+
+services:
+  langfuse-worker:
+    image: langfuse/langfuse-worker:4
+    container_name: langfuse-worker
+    environment:
+      <<: *langfuse-environment
+    depends_on:
+      langfuse-clickhouse:
+        condition: service_healthy
+    networks:
+      - shared-network
+      - minio-network
+      - redis-network
+    restart: unless-stopped
+
+  langfuse-web:
+    image: langfuse/langfuse:4
+    container_name: langfuse-web
+    environment:
+      <<: *langfuse-environment
+      LANGFUSE_INIT_ORG_ID: ${INIT_ORG_ID:-local-org}
+      LANGFUSE_INIT_ORG_NAME: ${INIT_ORG_NAME:-Local POC}
+      LANGFUSE_INIT_PROJECT_ID: ${INIT_PROJECT_ID:-local-project}
+      LANGFUSE_INIT_PROJECT_NAME: ${INIT_PROJECT_NAME:-Langfuse OpenAI POC}
+      LANGFUSE_INIT_PROJECT_PUBLIC_KEY: ${PUBLIC_KEY:?Set PUBLIC_KEY in langfuse/.env}
+      LANGFUSE_INIT_PROJECT_SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in langfuse/.env}
+      LANGFUSE_INIT_USER_EMAIL: ${INIT_USER_EMAIL:?Set INIT_USER_EMAIL in langfuse/.env}
+      LANGFUSE_INIT_USER_NAME: ${INIT_USER_NAME:-Local Admin}
+      LANGFUSE_INIT_USER_PASSWORD: ${INIT_USER_PASSWORD:?Set INIT_USER_PASSWORD in langfuse/.env}
+    ports:
+      - "3000:3000"
+    depends_on:
+      langfuse-worker:
+        condition: service_started
+      langfuse-clickhouse:
+        condition: service_healthy
+    healthcheck:
+      # 127.0.0.1, not localhost, the alpine image can resolve localhost to ::1 where the app is not listening.
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:3000/api/public/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    networks:
+      - shared-network
+      - minio-network
+      - redis-network
+    restart: unless-stopped
+
+  langfuse-clickhouse:
+    image: clickhouse/clickhouse-server:25.12
+    container_name: langfuse-clickhouse
+    user: "101:101"
+    environment:
+      CLICKHOUSE_DB: default
+      CLICKHOUSE_USER: clickhouse
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:?Set CLICKHOUSE_PASSWORD in langfuse/.env}
+    volumes:
+      - langfuse-clickhouse-data:/var/lib/clickhouse
+      - langfuse-clickhouse-logs:/var/log/clickhouse-server
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8123/ping || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    networks:
+      - shared-network
+    restart: unless-stopped
+
+volumes:
+  langfuse-clickhouse-data:
+  langfuse-clickhouse-logs:
+
+networks:
+  # Shared network with the already running Postgres container.
+  shared-network:
+    name: ${DOCKER_NETWORK:-langfuse-network}
+    external: true
+  # MinIO's own network, created by the minio stack, start MinIO before this stack.
+  minio-network:
+    name: ${MINIO_NETWORK:-minio-network}
+    external: true
+  # Redis's own network, created by the redis stack, start Redis before this stack.
+  redis-network:
+    name: ${REDIS_NETWORK:-redis-network}
+    external: true

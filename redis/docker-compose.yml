@@ -1,0 +1,38 @@
+
+name: redis
+
+services:
+  redis:
+    image: redis:7
+    # Not named plain redis, that name is taken by another running container on the VM.
+    # Langfuse still reaches this at redis:6379 through the compose service name alias.
+    container_name: redis-cache
+    command: >
+      --requirepass ${REDIS_PASSWORD:?Set REDIS_PASSWORD in redis/.env}
+      --maxmemory-policy noeviction
+      --appendonly yes
+    environment:
+      # Lets redis-cli in the healthcheck authenticate without the password on the command line.
+      REDISCLI_AUTH: ${REDIS_PASSWORD:?Set REDIS_PASSWORD in redis/.env}
+    # Host port 6380 to avoid the other Redis on the VM, container side is always 6379.
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 3s
+    networks:
+      - redis-network
+    restart: unless-stopped
+
+volumes:
+  redis-data:
+
+networks:
+  redis-network:
+    name: ${REDIS_NETWORK:-redis-network}
+    driver: bridge

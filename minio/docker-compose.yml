@@ -1,0 +1,34 @@
+name: minio
+
+services:
+  minio:
+    image: cgr.dev/chainguard/minio
+    container_name: minio
+    entrypoint: sh
+    # Create the default bucket before the server starts so clients never hit a missing bucket.
+    command: -c 'mkdir -p /data/${MINIO_DEFAULT_BUCKET:-langfuse} && minio server --address ":9000" --console-address ":9001" /data'
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?Set MINIO_ROOT_USER in minio/.env}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD in minio/.env}
+    ports:
+      - "9090:9000"
+      - "9091:9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    networks:
+      - minio-network
+    restart: unless-stopped
+
+volumes:
+  minio-data:
+
+networks:
+  minio-network:
+    name: ${MINIO_NETWORK:-minio-network}
+    driver: bridge
